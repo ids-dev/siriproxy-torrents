@@ -26,6 +26,7 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
 
   def get_cookies_from_response(response)
     cookies = response.to_hash['set-cookie']
+    return '' if cookies.nil?
     cookies = cookies.map{|i| i.split(';')[0].split '='}.flatten
     cookies = Hash[*cookies].reject{|k, v| v == 'deleted'}
     cookies.map{|k, v| "#{k}=#{v}"}.join '; '
@@ -35,7 +36,8 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     request = Net::HTTP::Post.new '/user/account/login'
     request.set_form_data({'username' => @torrentleech[:login], 'password' => @torrentleech[:password]})
     response = @torrentleech[:http].request request
-    @torrentleech[:cookies] = get_cookies_from_response response
+    cookies = get_cookies_from_response response
+    @torrentleech[:cookies] = cookies unless cookies.empty?
   end
 
   def torrentleech_search(query)
@@ -43,7 +45,8 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     request = Net::HTTP::Get.new "/torrents/browse/index/query/#{query}/order/desc/orderby/seeders"
     request['Cookie'] = @torrentleech[:cookies]
     response = @torrentleech[:http].request request
-    @torrentleech[:cookies] = get_cookies_from_response response
+    cookies = get_cookies_from_response response
+    @torrentleech[:cookies] = cookies unless cookies.empty?
     html = Hpricot(response.body)
     results = []
     (html/'table#torrenttable/tbody/tr:lt(3)').each do |row|
@@ -67,7 +70,8 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
       http.request request
     end
 
-    @utorrent[:cookies] = get_cookies_from_response response
+    cookies = get_cookies_from_response response
+    @utorrent[:cookies] = cookies unless cookies.empty?
 
     (Hpricot(response.body) % 'div').inner_text
   end
@@ -85,7 +89,8 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     request['Cookie'] = @torrentleech[:cookies]
     response = @torrentleech[:http].request request
 
-    @torrentleech[:cookies] = get_cookies_from_response response
+    cookies = get_cookies_from_response response
+    @torrentleech[:cookies] = cookies unless cookies.empty?
 
     @utorrent[:token] = utorrent_get_token if @utorrent[:token].nil?
 
@@ -93,12 +98,12 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     params = {token: @utorrent[:token], action: 'add-file', download_dir: 0, path: ''}
     uri.query = URI.encode_www_form(params)
 
-    request = Net::HTTP::Post::Multipart.new uri.request_uri, torrent_file: UploadIO.new(response.body, 'application/octet-stream', result[:href].split('/').last)
+    request = Net::HTTP::Post::Multipart.new uri.request_uri, torrent_file: UploadIO.new(StringIO.new(response.body), 'application/octet-stream', result[:href].split('/').last)
     request.basic_auth @utorrent[:login], @utorrent[:password]
     request['Cookie'] = @utorrent[:cookies]
 
     response = Net::HTTP.start uri.hostname, uri.port do |http|
-      http.request req
+      http.request request
     end
 
     say "Downloading #{result[:title]}"
@@ -109,9 +114,9 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     say_results @torrentleech[:results][0..2]
     response = ask "Which one should i download?"
 
-    if response =~ /^([1-3]|one|two|three)$/i
+    if response =~ /(?:number )?([1-3]|one|two|three)/i
       match = $1
-      match = map[match] if map.key? match
+      match = @@numbers[match] if @@numbers.key? match
       start_download match.to_i - 1
       #elsif response =~ /show more results/i
       #say_results @results[3..5]
