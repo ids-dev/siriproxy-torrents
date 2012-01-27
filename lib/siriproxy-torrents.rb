@@ -106,7 +106,7 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
       http.request request
     end
 
-    say "Downloading #{result[:title]}"
+    say "Downloading #{result[:title]} From TorrentLeech!"
   end
 
   listen_for /download (.*)/i do |name|
