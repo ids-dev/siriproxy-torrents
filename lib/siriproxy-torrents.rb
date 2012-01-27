@@ -115,7 +115,7 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     say_results @torrentleech[:results][0..2]
     response = ask "Which one should i download?"
 
-    if response =~ /^([1-3]|one|two|three)$/i
+    if response =~ /([1-3]|one|two|three)/i
       match = $1
       match = @@numbers[match] if @@numbers.key? match
       start_download match.to_i - 1
