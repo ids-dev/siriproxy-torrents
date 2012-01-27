@@ -105,7 +105,7 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
   end
 
   listen_for /download (.*)/i do |name|
-    @torrentleech[:results] = search name
+    @torrentleech[:results] = torrentleech_search name
     say_results @torrentleech[:results][0..2]
     response = ask "Which one should i download?"
 
