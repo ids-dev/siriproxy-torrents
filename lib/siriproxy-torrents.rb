@@ -95,9 +95,6 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
   def start_download(id)
     result = @torrentleech[:results][id]
 
-    puts result[:title]
-    puts result[:href]
-
     request = Net::HTTP::Get.new result[:href]
     request['Cookie'] = @torrentleech[:cookies]
     response = @torrentleech[:http].request request
