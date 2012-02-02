@@ -6,9 +6,8 @@ require 'net/http/post/multipart'
 
 class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
   # Siri passes small numbers as words.
-  # We use a hash to convert them back to integers
-  @@numbers = {'one' => 1, 'two' => 2, 'three' => 3, 'four' => 4, 'five' => 5,
-               'six' => 6, 'seven' => 7, 'eight' => 8, 'nine' => 9, 'ten' => 10}
+  # We use an array to convert them back to integers
+  @@numbers = %w(zero one two three four five six seven eight nine ten)
 
   def initialize(config)
     @torrentleech = {
@@ -98,7 +97,8 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     params = {token: @utorrent[:token], action: 'add-file', download_dir: 0, path: ''}
     uri.query = URI.encode_www_form(params)
 
-    request = Net::HTTP::Post::Multipart.new uri.request_uri, torrent_file: UploadIO.new(StringIO.new(response.body), 'application/octet-stream', result[:href].split('/').last)
+    file = UploadIO.new StringIO.new(response.body), 'application/octet-stream', result[:href].split('/').last
+    request = Net::HTTP::Post::Multipart.new uri.request_uri, torrent_file: file
     request.basic_auth @utorrent[:login], @utorrent[:password]
     request['Cookie'] = @utorrent[:cookies]
 
@@ -115,10 +115,9 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     say_results @torrentleech[:results][0..2]
     response = ask "Which one should i download?"
 
-    if response =~ /([1-3]|one|two|three)/i
-      match = $1
-      match = @@numbers[match] if @@numbers.key? match
-      start_download match.to_i - 1
+    if response =~ /([0-2]|zero|one|two)/i
+      match = @@numbers.index $1
+      start_download match.to_i
       #elsif response =~ /show more results/i
       #say_results @results[3..5]
     else
