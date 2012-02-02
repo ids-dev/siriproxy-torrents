@@ -48,7 +48,7 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     @torrentleech[:cookies] = cookies unless cookies.empty?
     html = Hpricot(response.body)
     results = []
-    (html/'table#torrenttable/tbody/tr:lt(3)').each do |row|
+    (html/'table#torrenttable/tbody/tr').each do |row|
         results << {
             title:    (row / 'td[2]/span.title/a').inner_text,
             href:     (row % 'td[3]/a')['href'],
@@ -75,14 +75,28 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
     (Hpricot(response.body) % 'div').inner_text
   end
 
-  def say_results(results)
-    results.each_with_index do |result, i|
-      say "#{result[:title]} (#{result[:size]}, #{result[:seeders]} seeders, #{result[:leechers]} leechers)", spoken: "#{i + 1}. #{result[:title]}"
+  def say_results(start = 0)
+    @torrentleech[:results][start..start + 2].each_with_index do |result, i|
+      say "#{result[:title]} (#{result[:size]}, #{result[:seeders]} seeders, #{result[:leechers]} leechers)", spoken: "#{i}. #{result[:title]}"
+    end
+
+    response = ask "Which one should i download?"
+
+    if response =~ /(zero|one|two)/i
+      match = @@numbers.index $1.downcase
+      start_download start + match
+    elsif response =~ /more/i
+      say_results start + 3
+    else
+      say "Download cancelled"
     end
   end
 
   def start_download(id)
     result = @torrentleech[:results][id]
+
+    puts result[:title]
+    puts result[:href]
 
     request = Net::HTTP::Get.new result[:href]
     request['Cookie'] = @torrentleech[:cookies]
@@ -110,19 +124,8 @@ class SiriProxy::Plugin::Torrents < SiriProxy::Plugin
   end
 
   listen_for /download (.*)/i do |name|
-    puts name
     @torrentleech[:results] = torrentleech_search name
-    say_results @torrentleech[:results][0..2]
-    response = ask "Which one should i download?"
-
-    if response =~ /([0-2]|zero|one|two)/i
-      match = @@numbers.index $1
-      start_download match.to_i
-      #elsif response =~ /show more results/i
-      #say_results @results[3..5]
-    else
-      say "Download cancelled"
-    end
+    say_results
     request_completed
   end
 end
